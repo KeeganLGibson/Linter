@@ -4,6 +4,7 @@
 #include "Templates/SharedPointer.h"
 #include "DetailCategoryBuilder.h"
 #include "IDetailChildrenBuilder.h"
+#include "AnyObject_LinterDummyClass.h"
 
 TSharedRef<IDetailCustomization> FLinterNamingConventionDetails::MakeInstance()
 {
@@ -25,9 +26,20 @@ void FLinterNamingConventionDetails::CustomizeDetails(class IDetailLayoutBuilder
 
 void FLinterNamingConventionDetails::OnGenerateElementForDetails(TSharedRef<IPropertyHandle> StructProperty, int32 ElementIndex, IDetailChildrenBuilder& ChildrenBuilder, IDetailLayoutBuilder* DetailLayout)
 {
+	TSharedRef<SWidget> RemoveButton = PropertyCustomizationHelpers::MakeRemoveButton(FSimpleDelegate::CreateLambda([this, DetailLayout, ElementIndex] {
+		TSharedRef<IPropertyHandle> NamingConventionsProperty            = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(ULinterNamingConvention, ClassNamingConventions), ULinterNamingConvention::StaticClass());
+		TSharedPtr<IPropertyHandleArray> NamingConventionsPropertyHandle = NamingConventionsProperty->AsArray();
+		NamingConventionsPropertyHandle->DeleteItem(ElementIndex);
+	}));
+
 	ChildrenBuilder.AddCustomRow(FText::GetEmpty())
 	[
 		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			RemoveButton
+		]
 		+ SHorizontalBox::Slot()
 		.FillWidth(1.0f)
 		[
@@ -134,3 +146,19 @@ void ULinterNamingConvention::SortConventions()
 		return false;
 	});
 }
+
+#if UE_VERSION_NEWER_THAN(5, 0, 0)
+void ULinterNamingConvention::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
+
+	SortConventions();
+}
+#else
+void ULinterNamingConvention::PreSave(const class ITargetPlatform* TargetPlatform)
+{
+	Super::PreSave(TargetPlatform);
+
+	SortConventions();
+}
+#endif
